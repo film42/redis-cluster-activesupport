@@ -3,6 +3,13 @@ require "spec_helper"
 describe ::ActiveSupport::Cache::RedisClusterStore do
   let(:options) { {} }
   let(:redis) { subject.redis }
+  let(:redis_proxy_method) do
+    if Gem::Version.new(ActiveSupport.version) >= Gem::Version.new("7.1.0")
+      :then
+    else
+      :with
+    end
+  end
 
   subject { described_class.new(*options) }
 
@@ -42,21 +49,21 @@ describe ::ActiveSupport::Cache::RedisClusterStore do
 
   describe "#write_entry" do
     it "returns false when a known error is raised" do
-      expect(redis).to receive(:with).and_raise(::Redis::CommandError, "ERR Proxy error")
+      expect(redis).to receive(redis_proxy_method).and_raise(::Redis::CommandError, "ERR Proxy error")
       expect(subject.write("test", "yolo")).to eq(false)
     end
   end
 
   describe "#read_entry" do
     it "returns false when a known error is raised" do
-      expect(redis).to receive(:with).and_raise(::Redis::CommandError, "ERR Proxy error")
+      expect(redis).to receive(redis_proxy_method).and_raise(::Redis::CommandError, "ERR Proxy error")
       expect(subject.read("test")).to eq(nil)
     end
   end
 
   describe "#delete_entry" do
     it "returns false when a known error is raised" do
-      expect(redis).to receive(:with).and_raise(::Redis::CommandError, "ERR Proxy error")
+      expect(redis).to receive(redis_proxy_method).and_raise(::Redis::CommandError, "ERR Proxy error")
       expect(subject.delete("test")).to eq(false)
     end
   end

@@ -1,5 +1,6 @@
 require "bundler/setup"
 require "pry"
+require "logger"
 require "redis/cluster/activesupport"
 require "fakeredis/rspec"
 
