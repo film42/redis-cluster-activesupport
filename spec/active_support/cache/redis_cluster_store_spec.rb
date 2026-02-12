@@ -1,7 +1,8 @@
 require "spec_helper"
 
 describe ::ActiveSupport::Cache::RedisClusterStore do
-  let(:options) { {} }
+  # Use pool: false to avoid connection_pool 3.0 compatibility issues with Rails 7.1
+  let(:options) { { redis: Redis.new, pool: false } }
   let(:redis) { subject.redis }
   let(:redis_proxy_method) do
     if Gem::Version.new(ActiveSupport.version) >= Gem::Version.new("7.1.0")
@@ -11,7 +12,7 @@ describe ::ActiveSupport::Cache::RedisClusterStore do
     end
   end
 
-  subject { described_class.new(*options) }
+  subject { described_class.new(**options) }
 
   describe "#delete_matched" do
     it "is not supported with redis cluster" do
@@ -50,7 +51,12 @@ describe ::ActiveSupport::Cache::RedisClusterStore do
   describe "#write_entry" do
     it "returns false when a known error is raised" do
       expect(redis).to receive(redis_proxy_method).and_raise(::Redis::CommandError, "ERR Proxy error")
-      expect(subject.write("test", "yolo")).to eq(false)
+      # Rails 7.2+ returns nil instead of false on write errors
+      if Gem::Version.new(ActiveSupport.version) >= Gem::Version.new("7.2.0")
+        expect(subject.write("test", "yolo")).to be_nil
+      else
+        expect(subject.write("test", "yolo")).to eq(false)
+      end
     end
   end
 
