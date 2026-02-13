@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "redis-cluster-activesupport"
-  spec.version       = "1.2.0"
+  spec.version       = "1.3.0"
   spec.authors       = ["Garrett Thornburg"]
   spec.email         = ["film42@gmail.com"]
 
