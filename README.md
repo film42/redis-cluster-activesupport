@@ -1,4 +1,4 @@
-# Redis cluster stores for ActiveSupport [![Build Status](https://travis-ci.org/film42/redis-cluster-activesupport.svg?branch=master)](https://travis-ci.org/film42/redis-cluster-activesupport)
+# Redis cluster stores for ActiveSupport [![CI](https://github.com/film42/redis-cluster-activesupport/actions/workflows/ci.yml/badge.svg)](https://github.com/film42/redis-cluster-activesupport/actions/workflows/ci.yml)
 
 This gem was an extension to [redis-activesupport](https://github.com/redis-store/redis-activesupport) that adds support
 for a few features required to use `redis-store` with redis cluster. Right now there isn't an official redis cluster
@@ -23,6 +23,27 @@ end
 ```
 
 
+## Limitations
+
+Because keys in a redis cluster are partitioned across shards, operations that
+touch **multiple keys at once** can't be executed in a single command and are
+therefore not supported. These methods raise `NotImplementedError` instead of
+silently returning incorrect results:
+
+- `read_multi` (would use `MGET`)
+- `write_multi` (would use `MSET`)
+- `fetch_multi` (would use `MULTI`)
+- `delete_matched` (would use `KEYS`/`SCAN`)
+
+```ruby
+store.read_multi("a", "b")        # => raises NotImplementedError
+store.write_multi("a" => 1, "b" => 2)  # => raises NotImplementedError
+```
+
+Read and write a single key at a time instead. Single-key operations
+(`read`, `write`, `fetch`, `increment`, `decrement`, `delete`, `exist?`) work
+as usual.
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -38,6 +59,48 @@ And then execute:
 Or install it yourself as:
 
     $ gem install redis-cluster-activesupport
+
+## Compatibility
+
+Requires Ruby 3.1+ (CRuby 3.1–3.4, JRuby 9.4–10.0) and is tested against
+ActiveSupport 6.0 through 8.1 (Rails 6.0–8.1). Note that Rails 6.0/6.1 only run
+on Ruby 3.1–3.3, and Rails 8.0/8.1 require Ruby 3.2+. See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) for the full Ruby x Rails
+support matrix.
+
+## Development & Testing
+
+Fast unit specs run against [fakeredis](https://github.com/guilleiguaran/fakeredis):
+
+```sh
+bundle exec rspec        # unit specs only (integration specs are excluded)
+```
+
+Integration specs exercise the store against a **real Redis Cluster**. Spin one
+up locally (3 masters + 3 replicas) and run them with:
+
+```sh
+bin/redis-cluster        # boots a cluster on 127.0.0.1:7000-7005
+bundle exec rake integration
+bin/redis-cluster stop   # tear it down when finished
+```
+
+Point the specs at an existing cluster with `REDIS_CLUSTER_NODES`
+(comma-separated seed nodes, e.g. `127.0.0.1:7000,127.0.0.1:7001`). On macOS,
+port 7000 is often held by the AirPlay Receiver — use
+`REDIS_CLUSTER_BASE_PORT=7010 bin/redis-cluster` and set `REDIS_CLUSTER_NODES`
+accordingly.
+
+To test against a specific Rails version, use [appraisal](https://github.com/thoughtbot/appraisal).
+The supported versions are declared in [`Appraisals`](Appraisals) and the
+`gemfiles/` are generated from it (and gitignored):
+
+```sh
+bundle exec appraisal generate            # (re)generate gemfiles/ from Appraisals
+bundle exec appraisal install             # generate + bundle install every version
+bundle exec appraisal rails81 rspec       # run unit specs against a single version
+bundle exec appraisal rails81 rake integration   # integration specs (needs a cluster)
+```
 
 ## Contributing
 
