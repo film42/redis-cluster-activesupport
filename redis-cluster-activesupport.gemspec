@@ -3,7 +3,7 @@ $LOAD_PATH.unshift(lib) unless $LOAD_PATH.include?(lib)
 
 Gem::Specification.new do |spec|
   spec.name          = "redis-cluster-activesupport"
-  spec.version       = "1.3.0"
+  spec.version       = "1.4.0"
   spec.authors       = ["Garrett Thornburg"]
   spec.email         = ["film42@gmail.com"]
 
@@ -19,7 +19,10 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activesupport", ">= 6.0", "< 7.3"
+  spec.required_ruby_version = ">= 3.1"
+
+  spec.add_dependency "activesupport", ">= 6.0", "< 8.2"
+  spec.add_development_dependency "appraisal"
   spec.add_development_dependency "bundler"
   spec.add_development_dependency "fakeredis"
   spec.add_development_dependency "pry"

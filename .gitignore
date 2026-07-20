@@ -10,4 +10,7 @@
 
 # rspec failure tracking
 .rspec_status
-gemfiles/*.lock
+
+# Gemfiles are generated from Appraisals by `bundle exec appraisal generate`
+gemfiles/*.gemfile
+gemfiles/*.gemfile.lock

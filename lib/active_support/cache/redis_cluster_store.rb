@@ -7,6 +7,14 @@ module ActiveSupport
         fail ::NotImplementedError, "Deleting keys with a matcher is not supported with redis cluster"
       end
 
+      def read_multi(*names)
+        fail ::NotImplementedError, "Reading multiple keys with MGET is not supported with redis cluster because the keys may live on different shards"
+      end
+
+      def write_multi(hash, options = nil)
+        fail ::NotImplementedError, "Writing multiple keys with MSET is not supported with redis cluster because the keys may live on different shards"
+      end
+
       def fetch_multi(*names)
         fail ::NotImplementedError, "The default implementation uses MULTI which isn't supported. This can be changed to use MSET and work."
       end

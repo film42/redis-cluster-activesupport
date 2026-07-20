@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+#
+# Boots a local Redis Cluster (3 masters + 3 replicas) for the integration specs,
+# then creates the cluster. Used by developers locally and by CI.
+#
+#   bin/redis-cluster            # start + create the cluster
+#   bin/redis-cluster stop       # stop the cluster and clean up
+#
+# Configure with:
+#   REDIS_CLUSTER_BASE_PORT  first node port (default 7000; nodes use base..base+5)
+#   REDIS_CLUSTER_HOST       bind/announce host (default 127.0.0.1)
+#   REDIS_CLUSTER_DIR        working dir for node data (default ./tmp/redis-cluster)
+#
+# Note for macOS users: port 7000 is often taken by the AirPlay Receiver
+# (Control Center). Either disable it or run with REDIS_CLUSTER_BASE_PORT=7010.
+set -euo pipefail
+
+HOST="${REDIS_CLUSTER_HOST:-127.0.0.1}"
+BASE_PORT="${REDIS_CLUSTER_BASE_PORT:-7000}"
+DIR="${REDIS_CLUSTER_DIR:-$(pwd)/tmp/redis-cluster}"
+
+PORTS=()
+for i in 0 1 2 3 4 5; do PORTS+=("$((BASE_PORT + i))"); done
+
+stop_cluster() {
+  echo "Stopping Redis Cluster nodes on ports ${PORTS[*]}..."
+  for p in "${PORTS[@]}"; do
+    redis-cli -h "$HOST" -p "$p" shutdown nosave >/dev/null 2>&1 || true
+  done
+  rm -rf "$DIR"
+  echo "Done."
+}
+
+if [[ "${1:-start}" == "stop" ]]; then
+  stop_cluster
+  exit 0
+fi
+
+echo "Starting Redis Cluster: ${HOST} ports ${PORTS[*]}"
+rm -rf "$DIR"
+for p in "${PORTS[@]}"; do
+  mkdir -p "$DIR/$p"
+  redis-server \
+    --port "$p" \
+    --cluster-enabled yes \
+    --cluster-config-file nodes.conf \
+    --cluster-node-timeout 5000 \
+    --appendonly no \
+    --save "" \
+    --dir "$DIR/$p" \
+    --daemonize yes \
+    --logfile "$DIR/$p/server.log"
+done
+
+# Wait for every node to accept connections before forming the cluster.
+for p in "${PORTS[@]}"; do
+  for _ in $(seq 1 50); do
+    if redis-cli -h "$HOST" -p "$p" ping >/dev/null 2>&1; then break; fi
+    sleep 0.2
+  done
+done
+
+ADDRS=()
+for p in "${PORTS[@]}"; do ADDRS+=("$HOST:$p"); done
+
+redis-cli --cluster create "${ADDRS[@]}" --cluster-replicas 1 --cluster-yes
+
+echo
+echo "Redis Cluster ready. Seed nodes:"
+echo "  REDIS_CLUSTER_NODES=${HOST}:${PORTS[0]},${HOST}:${PORTS[1]},${HOST}:${PORTS[2]}"
