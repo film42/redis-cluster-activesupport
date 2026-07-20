@@ -65,6 +65,20 @@ for p in "${PORTS[@]}"; do ADDRS+=("$HOST:$p"); done
 
 redis-cli --cluster create "${ADDRS[@]}" --cluster-replicas 1 --cluster-yes
 
+# `--cluster create` returns once all slots are covered, but there is a brief
+# gossip window before every node reports `cluster_state:ok`. Commands issued
+# during that window can fail, so block until each node considers the cluster
+# ready before handing control back to the caller / test suite.
+echo "Waiting for cluster_state:ok on all nodes..."
+for p in "${PORTS[@]}"; do
+  for _ in $(seq 1 50); do
+    if redis-cli -h "$HOST" -p "$p" cluster info 2>/dev/null | grep -q "cluster_state:ok"; then
+      break
+    fi
+    sleep 0.2
+  done
+done
+
 echo
 echo "Redis Cluster ready. Seed nodes:"
 echo "  REDIS_CLUSTER_NODES=${HOST}:${PORTS[0]},${HOST}:${PORTS[1]},${HOST}:${PORTS[2]}"
